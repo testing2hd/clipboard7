@@ -1,0 +1,9 @@
+Upload every file in this zip to the ROOT of your GitHub repo (except this txt file).
+Then create ONE more file in GitHub: name it  .github/workflows/build-apk.yml
+and paste the contents of build-apk.yml into it. (Same content as the file in this zip.)
+Open Actions > Build APK, wait for it to finish, download "link-router-apk".
+After installing: turn on Accessibility (floating button), Display over other apps, notifications, and start Shizuku.
+After installing, add the app "Download video" (teal download icon) to your sidebar / Edge panel.
+Open a video in YouTube, TikTok, Instagram or Facebook, then tap it: a small card lists your folders (and your last downloads). Pick one: it presses Share > Copy link and downloads.
+In a browser (Chrome, Firefox, Samsung Internet, Brave...) it reads the page address and downloads that page's video.
+Edit your folder list in the app: More settings > Files.

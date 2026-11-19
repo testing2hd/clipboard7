@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Link Router</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<main>
+  <h1>Link Router</h1>
+
+  <section id="setup" hidden>
+    <h2>Finish setup</h2>
+    <ul id="todo"></ul>
+  </section>
+
+  <section>
+    <input type="text" id="dlUrl" placeholder="Paste a video link" spellcheck="false" autocapitalize="off" aria-label="Video link">
+    <button class="wide" id="dlGo">Download</button>
+    <div class="quick">
+      <div class="seg" id="mode"><button data-v="video">Video</button><button data-v="audio">Audio</button></div>
+      <select id="q" aria-label="Quality"></select>
+      <select id="af" aria-label="Audio format" hidden></select>
+    </div>
+    <button class="link" id="fmtGo">Pick a specific format</button>
+    <div id="fmts" hidden></div>
+  </section>
+
+  <section>
+    <div class="switch-row">
+      <div><h2>Detect copied links</h2><p id="msg" class="msg">Loading...</p></div>
+      <label class="toggle"><input type="checkbox" id="svc" aria-label="Detect copied links"><span></span></label>
+    </div>
+  </section>
+
+  <section>
+    <h2>Download button for your sidebar</h2>
+    <p class="msg">Add the app called <b>Download video</b> to your sidebar or Edge panel. While a video is on screen, tap it: the app presses Share and Copy link and downloads the video. It first asks which folder to save to (set your folders in More settings → Files). In Chrome, Firefox, Samsung Internet, Brave and other browsers it reads the page address and downloads that page's video.</p>
+  </section>
+
+  <section>
+    <details id="recent">
+      <summary class="big">Recent downloads</summary>
+      <ul id="hist"></ul>
+      <p class="msg" id="histEmpty">Nothing yet.</p>
+    </details>
+  </section>
+
+  <section>
+    <details id="more">
+      <summary class="big">More settings</summary>
+      <div id="settings"></div>
+      <h3 class="sub">Open-with apps</h3>
+      <div id="apps"></div>
+      <button class="ghost" id="addApp">Add app</button>
+      <h3 class="sub">Engine</h3>
+      <p class="msg" id="eng">Engine: loading...</p>
+      <button class="ghost wide" id="upd">Update engine now</button>
+      <p class="msg">It also updates itself every 12 hours and after a failed download.</p>
+      <button class="ghost wide" id="test">Show test popup</button>
+    </details>
+  </section>
+</main>
+<div id="toast" hidden></div>
+<script src="app.js"></script>
+</body>
+</html>
