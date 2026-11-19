@@ -89,6 +89,7 @@ public class LinkAccessibilityService extends AccessibilityService {
     private boolean busy;
     private int session;
     private int scrolls;
+    private boolean viaShare;
 
     static boolean isEnabled(Context c) {
         try {
@@ -137,7 +138,20 @@ public class LinkAccessibilityService extends AccessibilityService {
 
     // ---------- the folder picker: a small card, nothing else ----------
 
-    private LinearLayout picker;
+    private LinearLayout picker;          // the content
+    private CapScroll pickerWin;          // the window: scrolls, never taller than the screen
+
+    /** A ScrollView that never grows taller than 88% of the screen, so it fits portrait and landscape. */
+    private static class CapScroll extends ScrollView {
+        int maxH;
+        CapScroll(Context c) { super(c); }
+        @Override
+        protected void onMeasure(int w, int hSpec) {
+            int h = MeasureSpec.getSize(hSpec);
+            int cap = h > 0 ? Math.min(h, maxH) : maxH;
+            super.onMeasure(w, MeasureSpec.makeMeasureSpec(cap, MeasureSpec.AT_MOST));
+        }
+    }
     private WindowManager.LayoutParams pickerLp;
     private boolean pickerMode;      // true: full card (settings, folders, recent); false: progress only
     private boolean showAll;         // "Show more" expanded
@@ -232,8 +246,13 @@ public class LinkAccessibilityService extends AccessibilityService {
         final LinearLayout card = new LinearLayout(this);
         card.setOrientation(LinearLayout.VERTICAL);
         card.setPadding(dp(10), dp(6), dp(10), dp(10));
-        card.setBackground(pill(0xF01B2030, 22));
-        card.setOnTouchListener((v, ev) -> {
+        final CapScroll win = new CapScroll(this);
+        win.maxH = (int) (getResources().getDisplayMetrics().heightPixels * 0.88f);
+        win.setBackground(pill(0xF01B2030, 22));
+        win.setVerticalScrollBarEnabled(false);
+        win.setOverScrollMode(View.OVER_SCROLL_NEVER);
+        win.addView(card, new ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        win.setOnTouchListener((v, ev) -> {
             if (ev.getAction() == MotionEvent.ACTION_OUTSIDE && pickerMode) hidePicker();
             return false;
         });
@@ -242,15 +261,17 @@ public class LinkAccessibilityService extends AccessibilityService {
                 WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE | WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL
                         | WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH,
                 PixelFormat.TRANSLUCENT);
-        p.gravity = Gravity.BOTTOM | Gravity.END;
+        p.gravity = Gravity.CENTER_VERTICAL | Gravity.END;
         p.x = dp(14);
-        p.y = dp(110);
+        p.y = 0;
         try {
-            wm.addView(card, p);
+            wm.addView(win, p);
+            pickerWin = win;
             picker = card;
             pickerLp = p;
         } catch (Throwable t) {
             picker = null;
+            pickerWin = null;
             if (pickerMode) { nextFolder = null; grab(); }   // could not draw the card: just use the default folder
             return;
         }
@@ -260,6 +281,7 @@ public class LinkAccessibilityService extends AccessibilityService {
     private void render() {
         if (picker == null) return;
         final LinearLayout card = picker;
+        final int keepY = pickerWin == null ? 0 : pickerWin.getScrollY();
         card.removeAllViews();
 
         // ----- quick settings: video / audio + quality -----
@@ -295,14 +317,7 @@ public class LinkAccessibilityService extends AccessibilityService {
             for (final String f : folders) {
                 fl.addView(chip(f, TEAL, 42, 15, Gravity.CENTER, v -> { hidePicker(); nextFolder = f; grab(); }));
             }
-            if (folders.size() > 99) {
-                ScrollView fs = new ScrollView(this);
-                fs.setVerticalScrollBarEnabled(false);
-                fs.addView(fl);
-                card.addView(fs, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(38 * 3 + 4)));
-            } else {
-                card.addView(fl);
-            }
+            card.addView(fl);
         }
 
         // ----- recent downloads: 2 shown, "Show more" (no border) for the rest, scrolls -----
@@ -323,30 +338,45 @@ public class LinkAccessibilityService extends AccessibilityService {
                 final JSONObject e = done.get(i);
                 list.addView(chip("\u2713 " + e.optString("title"), 0, 34, 13, Gravity.START, v -> { hidePicker(); openFile(e.optString("uri")); }));
             }
-            if (showAll && limit > 6) {
-                ScrollView sv = new ScrollView(this);
-                sv.setVerticalScrollBarEnabled(false);
-                sv.addView(list);
-                card.addView(sv, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(40 * 6)));
-            } else {
-                card.addView(list);
-            }
+            card.addView(list);
             if (done.size() > 3) {
                 TextView more = chip(showAll ? "Show less" : "Show more", 0, 32, 13, Gravity.START, v -> { showAll = !showAll; render(); });
                 more.setTextColor(TEAL_TXT);
                 card.addView(more);
             }
         }
-        try { if (pickerLp != null) wm.updateViewLayout(card, pickerLp); } catch (Throwable ignored) { }
+        try { if (pickerLp != null && pickerWin != null) wm.updateViewLayout(pickerWin, pickerLp); } catch (Throwable ignored) { }
+        if (keepY > 0 && pickerWin != null) { final CapScroll w = pickerWin; w.post(() -> w.scrollTo(0, keepY)); }
         h.removeCallbacks(autoHide);
         h.postDelayed(autoHide, 15000);
     }
 
     private void hidePicker() {
         h.removeCallbacks(autoHide);
-        if (picker == null) return;
-        try { wm.removeView(picker); } catch (Throwable ignored) { }
+        if (pickerWin == null) { picker = null; return; }
+        try { wm.removeView(pickerWin); } catch (Throwable ignored) { }
+        pickerWin = null;
         picker = null;
+    }
+
+    /** After Copy link the app's share sheet can stay open: press Back (at most twice) while "Copy link" is still on screen. */
+    private void closeShareSheet(final int n) {
+        if (n >= 2 || busy) return;
+        List<Cand> cands = new ArrayList<>();
+        int centerY = getResources().getDisplayMetrics().heightPixels / 2;
+        try {
+            List<AccessibilityWindowInfo> ws = getWindows();
+            if (ws != null) {
+                for (AccessibilityWindowInfo w : ws) {
+                    AccessibilityNodeInfo r = w.getRoot();
+                    if (r == null || ours(r)) continue;
+                    collect(r, cands, new int[]{2500}, centerY);
+                }
+            }
+        } catch (Throwable ignored) { }
+        if (pick(cands, words(COPY_STRONG, "bubbleCopy")) == null) return;
+        performGlobalAction(GLOBAL_ACTION_BACK);
+        h.postDelayed(() -> closeShareSheet(n + 1), 400);
     }
 
     private void openFile(String uri) {
@@ -424,6 +454,7 @@ public class LinkAccessibilityService extends AccessibilityService {
         if (busy) return;
         busy = true;
         scrolls = 0;
+        viaShare = false;
         final int sid = ++session;
         final long t0 = System.currentTimeMillis();
         suppressUntil = SystemClock.elapsedRealtime() + 9000;
@@ -531,6 +562,7 @@ public class LinkAccessibilityService extends AccessibilityService {
         if (best == null && attempt >= 25) best = pick(cands, Arrays.asList(COPY_WEAK));
         if (best != null) {
             if (!click(best.node)) { fail(sid, "Couldn't press Copy link."); return; }
+            viaShare = true;
             h.postDelayed(() -> readClip(sid, t0, 0), 150);
             return;
         }
@@ -752,6 +784,7 @@ public class LinkAccessibilityService extends AccessibilityService {
             toast(folder == null || folder.isEmpty() ? "Downloading\u2026" : "Downloading to " + folder + "\u2026");
             removeFocus();
             done();
+            if (viaShare) { viaShare = false; h.postDelayed(() -> closeShareSheet(0), 350); }
         } catch (Throwable t) {
             removeFocus();
             fail(sid, "Android blocked the download from the background. Open Link Router and allow \"Display over other apps\".");
