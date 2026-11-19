@@ -178,12 +178,12 @@ public class LinkAccessibilityService extends AccessibilityService {
         TextView t = new TextView(this);
         t.setText(text);
         t.setTextColor(on ? Color.WHITE : 0xFFC3CAD8);
-        t.setTextSize(12);
+        t.setTextSize(13);
         t.setTypeface(on ? android.graphics.Typeface.DEFAULT_BOLD : android.graphics.Typeface.DEFAULT);
         t.setGravity(Gravity.CENTER);
         t.setSingleLine(true);
-        t.setBackground(pill(on ? TEAL : OFF, 15));
-        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, dp(30), 1f);
+        t.setBackground(pill(on ? TEAL : OFF, 17));
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, dp(34), 1f);
         lp.rightMargin = dp(6);
         t.setLayoutParams(lp);
         t.setOnClickListener(l);
@@ -210,7 +210,7 @@ public class LinkAccessibilityService extends AccessibilityService {
 
     private TextView section(String s) {
         TextView t = lbl(s, 11, MUTED, false);
-        t.setPadding(dp(8), dp(8), 0, 0);
+        t.setPadding(dp(8), dp(12), 0, 0);
         return t;
     }
 
@@ -231,13 +231,13 @@ public class LinkAccessibilityService extends AccessibilityService {
         hidePicker();
         final LinearLayout card = new LinearLayout(this);
         card.setOrientation(LinearLayout.VERTICAL);
-        card.setPadding(dp(10), dp(4), dp(10), dp(8));
+        card.setPadding(dp(10), dp(6), dp(10), dp(10));
         card.setBackground(pill(0xF01B2030, 22));
         card.setOnTouchListener((v, ev) -> {
             if (ev.getAction() == MotionEvent.ACTION_OUTSIDE && pickerMode) hidePicker();
             return false;
         });
-        WindowManager.LayoutParams p = new WindowManager.LayoutParams(dp(260), ViewGroup.LayoutParams.WRAP_CONTENT,
+        WindowManager.LayoutParams p = new WindowManager.LayoutParams(dp(290), ViewGroup.LayoutParams.WRAP_CONTENT,
                 WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
                 WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE | WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL
                         | WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH,
@@ -288,14 +288,14 @@ public class LinkAccessibilityService extends AccessibilityService {
         } catch (Throwable ignored) { }
         card.addView(section(audio ? "Save to (Music)" : "Save to (Movies)"));
         if (!ask || folders.isEmpty()) {
-            card.addView(chip("Download", TEAL, 32, 14, Gravity.CENTER, v -> { hidePicker(); nextFolder = null; grab(); }));
+            card.addView(chip("Download", TEAL, 42, 15, Gravity.CENTER, v -> { hidePicker(); nextFolder = null; grab(); }));
         } else {
             LinearLayout fl = new LinearLayout(this);
             fl.setOrientation(LinearLayout.VERTICAL);
             for (final String f : folders) {
-                fl.addView(chip(f, TEAL, 32, 14, Gravity.CENTER, v -> { hidePicker(); nextFolder = f; grab(); }));
+                fl.addView(chip(f, TEAL, 42, 15, Gravity.CENTER, v -> { hidePicker(); nextFolder = f; grab(); }));
             }
-            if (folders.size() > 3) {
+            if (folders.size() > 99) {
                 ScrollView fs = new ScrollView(this);
                 fs.setVerticalScrollBarEnabled(false);
                 fs.addView(fl);
@@ -316,23 +316,23 @@ public class LinkAccessibilityService extends AccessibilityService {
         } catch (Throwable ignored) { }
         if (!done.isEmpty()) {
             card.addView(section("Recent"));
-            int limit = showAll ? done.size() : Math.min(2, done.size());
+            int limit = showAll ? done.size() : Math.min(3, done.size());
             LinearLayout list = new LinearLayout(this);
             list.setOrientation(LinearLayout.VERTICAL);
             for (int i = 0; i < limit; i++) {
                 final JSONObject e = done.get(i);
-                list.addView(chip("\u2713 " + e.optString("title"), 0, 30, 12, Gravity.START, v -> { hidePicker(); openFile(e.optString("uri")); }));
+                list.addView(chip("\u2713 " + e.optString("title"), 0, 34, 13, Gravity.START, v -> { hidePicker(); openFile(e.optString("uri")); }));
             }
-            if (showAll && limit > 4) {
+            if (showAll && limit > 6) {
                 ScrollView sv = new ScrollView(this);
                 sv.setVerticalScrollBarEnabled(false);
                 sv.addView(list);
-                card.addView(sv, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(36 * 4)));
+                card.addView(sv, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(40 * 6)));
             } else {
                 card.addView(list);
             }
-            if (done.size() > 2) {
-                TextView more = chip(showAll ? "Show less" : "Show more", 0, 30, 12, Gravity.START, v -> { showAll = !showAll; render(); });
+            if (done.size() > 3) {
+                TextView more = chip(showAll ? "Show less" : "Show more", 0, 32, 13, Gravity.START, v -> { showAll = !showAll; render(); });
                 more.setTextColor(TEAL_TXT);
                 card.addView(more);
             }
