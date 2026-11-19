@@ -130,6 +130,10 @@ final class Downloader {
     /** folder overrides the default folder name for this one download (the sidebar picker). */
     static Result download(Context c, String url, String fmt, String folder, Progress p) throws Exception {
         cancelled = false;
+        if (b(Config.dl(c), "archive")) {
+            String have = alreadyDownloaded(c, url);
+            if (have != null) throw new Exception("Already downloaded: " + have);
+        }
         ensureInit(c);
         updateIfStale(c);
         File dir = new File(c.getExternalFilesDir(null), "tmp/" + System.currentTimeMillis());
@@ -148,6 +152,32 @@ final class Downloader {
             currentId = null;
             deleteAll(dir);
         }
+    }
+
+    /** Name of an earlier download of this link whose file still exists on the phone, else null. Deleted files do not count. */
+    private static String alreadyDownloaded(Context c, String url) {
+        try {
+            JSONArray h = history(c);
+            for (int i = 0; i < h.length(); i++) {
+                JSONObject e = h.getJSONObject(i);
+                if (!"done".equals(e.optString("status")) || !url.equals(e.optString("url"))) continue;
+                String uri = e.optString("uri");
+                if (!uri.isEmpty() && fileExists(c, uri)) return e.optString("title");
+            }
+        } catch (Throwable ignored) { }
+        return null;
+    }
+
+    private static boolean fileExists(Context c, String uri) {
+        try {
+            Uri u = Uri.parse(uri);
+            try (android.database.Cursor q = c.getContentResolver().query(u, new String[]{MediaStore.MediaColumns._ID}, null, null, null)) {
+                if (q == null || !q.moveToFirst()) return false;
+            }
+            try (android.content.res.AssetFileDescriptor f = c.getContentResolver().openAssetFileDescriptor(u, "r")) {
+                return f != null;
+            }
+        } catch (Throwable t) { return false; }
     }
 
     private static String s(JSONObject d, String k, String def) { return d.optString(k, def).trim(); }
@@ -224,7 +254,6 @@ final class Downloader {
         if (!s(d, "sections", "").isEmpty()) r.addOption("--download-sections", s(d, "sections", ""));
         if (!s(d, "rate", "").isEmpty()) r.addOption("-r", s(d, "rate", ""));
         if (b(d, "restrict")) r.addOption("--restrict-filenames");
-        if (b(d, "archive")) r.addOption("--download-archive", new File(c.getFilesDir(), "archive.txt").getAbsolutePath());
         if (!s(d, "extra", "").isEmpty()) r.addCommands(split(s(d, "extra", ""))); // anything else yt-dlp supports
 
         currentId = "lr-" + System.currentTimeMillis();
